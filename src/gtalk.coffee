@@ -65,6 +65,11 @@ class Gtalkbot extends Adapter
       console.error '[xmpp error] - ' + stanza
       return
 
+    # Detect if message is an invitation
+    if stanza.getChild('x') and stanza.getChild('x').getChild('invite')
+      @handlePresence stanza
+      return
+
     # Check for presence responses
     if stanza.is 'presence'
       @handlePresence stanza
@@ -103,6 +108,8 @@ class Gtalkbot extends Adapter
 
     # Send the message to the robot
     user = @getUser jid
+    user.type = stanza.attrs.type
+
     @receive new TextMessage(user, message)
 
   handlePresence: (stanza) ->
@@ -139,6 +146,11 @@ class Gtalkbot extends Adapter
             from: @client.jid.toString()
             to:   stanza.attrs.from
             id:   stanza.attrs.id
+        )
+
+      when 'chat'
+        @client.send new Xmpp.Element('presence',
+            to:   "#{stanza.attrs.from}/#{stanza.attrs.to}"
         )
 
       when 'available'
@@ -185,7 +197,7 @@ class Gtalkbot extends Adapter
       message = new Xmpp.Element('message',
           from: @client.jid.toString()
           to: user.id
-          type: 'chat'
+          type: user.type or 'groupchat'
         ).
         c('body').t(str)
       # Send it off
@@ -200,4 +212,3 @@ class Gtalkbot extends Adapter
 
 exports.use = (robot) ->
   new Gtalkbot robot
-
